@@ -28,9 +28,11 @@
 # 0) 安装 Python 3.10+ 与依赖
 python -m pip install mitmproxy
 
-# 1) 信任 mitmproxy 的 CA 证书（每台电脑首次做一次）
-#    运行一次 mitmdump，打开 http://mitm.it 下载证书并安装到「受信任的根证书颁发机构」
-#    安装后重启微信（微信会读取系统信任的证书）
+# 1) 信任 mitmproxy 的 CA 证书（首次运行脚本会自动安装）
+#    首次运行脚本检测到证书未受信任时，会自动生成证书并弹 UAC 装到
+#    「受信任的根证书颁发机构」，装完重启微信即可。
+#    手动备选：certutil -addstore -f Root "%USERPROFILE%\.mitmproxy\mitmproxy-ca-cert.cer"
+#              （或运行一次 mitmdump 后打开 http://mitm.it 下载安装）
 
 # 2) 准备配置
 copy config.example.json config.json
@@ -56,7 +58,7 @@ python checkin.py
 | `checkin.cmd`（双击） | 一键打卡，弹窗显示成功/失败 |
 | `python checkin.py` | 完整流程：切代理 → 抓 ticket → 提交 → 还原 → 通知 |
 | `python checkin.py --no-submit` | 只抓 ticket 不提交（验证抓包链路） |
-| `python checkin.py --dry-run` | 只打印步骤，不改代理、不启动 mitmproxy |
+| `python checkin.py --dry-run` | 只打印步骤，不改代理、不启动 mitmproxy、不装证书 |
 
 ---
 
@@ -84,7 +86,7 @@ mooncheck/
 ├─ LICENSE                 MIT
 ├─ .gitignore              默认忽略 config.json / out/ / capture/ 等
 ├─ checkin.cmd             双击一键打卡（Windows，含成功/失败提示）
-├─ checkin.py              命令行入口：切代理 → 抓 ticket → 提交 → 还原 → 通知
+├─ checkin.py              命令行入口：装 CA 证书（首次）→ 切代理 → 抓 ticket → 提交 → 还原 → 通知
 ├─ capture_wanan.py        mitmproxy addon：截获 sessionId / ticket 落盘
 ├─ wsc_mp.py               小程序会话客户端（读 ticket、校验时效、查询状态）
 ├─ wsc_checkin.py          打卡接口封装（端点 / 请求头 / 载荷字段 / 安全字段提取）
@@ -112,7 +114,7 @@ mooncheck/
 
 ## 迁移到其它电脑
 
-拷贝整个目录，装 Python + `pip install mitmproxy`，首次信任 CA 证书并重启微信，填好 `config.json` 即可。
+拷贝整个目录，装 Python + `pip install mitmproxy`，填好 `config.json` 即可。首次运行脚本会自动安装 CA 证书（弹 UAC，点「是」），装完重启微信。
 `mitmdump` 路径自动探测（`PATH` → 当前解释器的 `Scripts/`），找不到时在 `config.json` 里写 `mitmdump_path`。
 如果带 mitmproxy 的 Python 不在 PATH 里，可新建 `python_path.txt`（一行，写它的 `python.exe` 绝对路径；该文件已加入 `.gitignore`，不会入库）。
 

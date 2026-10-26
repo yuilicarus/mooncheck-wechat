@@ -83,6 +83,75 @@ def find_mitmdump(cfg):
     return None
 
 
+# ============================ CA 证书 ============================
+def ca_cert_path():
+    return os.path.join(os.path.expanduser('~'), '.mitmproxy', 'mitmproxy-ca-cert.cer')
+
+
+def is_cert_trusted():
+    try:
+        r = subprocess.run(['certutil', '-store', 'Root'],
+                           capture_output=True, timeout=20)
+        return b'mitmproxy' in (r.stdout or b'').lower()
+    except Exception:
+        return False
+
+
+def generate_ca_cert(cfg):
+    mitmdump = cfg.get('mitmdump')
+    if not mitmdump:
+        return False
+    cert = ca_cert_path()
+    proc = subprocess.Popen([mitmdump, '--quiet'], cwd=HERE,
+                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        deadline = time.time() + 10
+        while time.time() < deadline:
+            if os.path.exists(cert):
+                return True
+            time.sleep(0.5)
+        return os.path.exists(cert)
+    finally:
+        try:
+            proc.terminate()
+            proc.wait(timeout=5)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+
+
+def install_cert(cert):
+    ps = ("Start-Process -FilePath 'certutil.exe' "
+          "-ArgumentList '-addstore -f Root \"%s\"' -Verb RunAs -Wait" % cert)
+    try:
+        r = subprocess.run(['powershell', '-NoProfile', '-Command', ps],
+                           capture_output=True, timeout=180)
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def ensure_ca_cert(cfg):
+    if is_cert_trusted():
+        return True
+    cert = ca_cert_path()
+    log('mitmproxy CA 证书尚未受信任，开始首次配置 ...')
+    if not os.path.exists(cert):
+        log('生成 mitmproxy CA 证书 ...')
+        if not generate_ca_cert(cfg):
+            log('生成证书失败，请手动运行一次 mitmdump 后再试。')
+            return False
+    log('安装证书到「受信任的根证书颁发机构」（即将弹出 UAC 授权框，请点「是」）...')
+    install_cert(cert)
+    if is_cert_trusted():
+        log('CA 证书已受信任。若微信正在运行，请重启微信后再打卡。')
+        return True
+    log('证书安装失败或已取消，请手动安装：%s' % cert)
+    return False
+
+
 # ============================ 系统代理 ============================
 REG_KEY = r'Software\Microsoft\Windows\CurrentVersion\Internet Settings'
 
@@ -272,7 +341,12 @@ def main():
         log('dry-run：当前代理 enable=%s server=%s；将临时改为 %s:%s' % (e, s, PROXY_HOST, proxy_port))
         log('dry-run：启动 mitmdump → 手动打开小程序 → 抓 ticket → %s → 还原代理'
             % ('提交打卡' if not args.no_submit else '仅抓取'))
+        if not is_cert_trusted():
+            log('dry-run：CA 证书尚未受信任，正式运行时会自动安装')
         return 0
+
+    if not ensure_ca_cert(cfg):
+        log('注意：CA 证书未成功安装，抓取 ticket 可能失败（可手动安装后重试）。')
 
     start_epoch = time.time()
     orig_proxy = read_proxy()
