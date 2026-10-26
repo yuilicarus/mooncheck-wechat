@@ -114,6 +114,7 @@ mooncheck/
 
 拷贝整个目录，装 Python + `pip install mitmproxy`，首次信任 CA 证书并重启微信，填好 `config.json` 即可。
 `mitmdump` 路径自动探测（`PATH` → 当前解释器的 `Scripts/`），找不到时在 `config.json` 里写 `mitmdump_path`。
+如果带 mitmproxy 的 Python 不在 PATH 里，可新建 `python_path.txt`（一行，写它的 `python.exe` 绝对路径；该文件已加入 `.gitignore`，不会入库）。
 
 ---
 

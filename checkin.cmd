@@ -4,12 +4,36 @@ chcp 65001 >nul
 set "PYTHONIOENCODING=utf-8"
 cd /d "%~dp0"
 
-rem Pick Python: prefer PATH python; fall back to local WANAN env if mitmproxy missing.
-rem On another machine, change the fallback path below, or just: set "PY=python"
+rem ---------------------------------------------------------------
+rem  Pick the Python interpreter (no machine-specific path hardcoded).
+rem    1) python on PATH, if it already has mitmproxy
+rem    2) python_path.txt (gitignored): one line = full path to a
+rem       python.exe that has mitmproxy
+rem ---------------------------------------------------------------
 set "PY=python"
 "%PY%" -c "import mitmproxy" >nul 2>&1
-if errorlevel 1 set "PY=D:\programs\Miniconda\envs\WANAN\python.exe"
+if not errorlevel 1 goto :have_py
 
+set "PY="
+if not exist "python_path.txt" goto :no_py
+for /f "usebackq delims=" %%p in ("python_path.txt") do set "PY=%%p"
+if not defined PY goto :no_py
+"%PY%" -c "import mitmproxy" >nul 2>&1
+if not errorlevel 1 goto :have_py
+
+:no_py
+echo [ERROR] No Python with mitmproxy was found.
+echo.
+echo   Fix either one, then re-run:
+echo     1) Install mitmproxy into your PATH Python:
+echo           python -m pip install mitmproxy
+echo     2) Or create python_path.txt next to this script, containing
+echo        one line: the full path to a Python that has mitmproxy.
+echo.
+pause
+exit /b 1
+
+:have_py
 echo ============================================================
 echo    Good Night Chengdian - one-click check-in
 echo ============================================================
@@ -40,7 +64,7 @@ echo    [FAIL] Check-in failed. Check the log above (WeChat not logged in / CA n
 goto done
 
 :nopy
-echo    [ERROR] Python not found (%PY%). Fix the PY setting at the top of this script.
+echo    [ERROR] Python not found. Check python_path.txt, or see the error above.
 goto done
 
 :unknown
