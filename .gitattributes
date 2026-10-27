@@ -10,6 +10,8 @@
 *.md    text eol=lf
 *.json  text eol=lf
 *.csv   text eol=lf
+*.cmd   text eol=crlf
+*.bat   text eol=crlf
 
 # 二进制文件不做换行处理
 *.png   binary

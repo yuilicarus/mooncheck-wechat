@@ -96,8 +96,8 @@ class CaptureWanan:
         with open(tmp, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         os.replace(tmp, dst)
-        print('[capture_wanan] flushed: ticket=%s sn=%s' %
-              (self.ticket is not None, self.sn))
+        print('[capture_wanan] 已写入 out/miniprogram.json：ticket=%s sn=%s' %
+              ('有' if self.ticket else '无', self.sn or '未知'))
 
 
 addons = [CaptureWanan()]
