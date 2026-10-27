@@ -59,6 +59,7 @@ python checkin.py
 | `python checkin.py` | 完整流程：切代理 → 抓 ticket → 提交 → 还原 → 通知 |
 | `python checkin.py --no-submit` | 只抓 ticket 不提交（验证抓包链路） |
 | `python checkin.py --dry-run` | 只打印步骤，不改代理、不启动 mitmproxy、不装证书 |
+| `python checkin.py --doctor` | 打印环境诊断（Python / mitmproxy / mitmdump / 证书 / 代理），排查问题先跑它 |
 
 ---
 
@@ -108,14 +109,46 @@ mooncheck/
 | `notify_sendkey` | （可选）Server酱 SendKey，留空或保留 `PUT_` 前缀则跳过推送 |
 | `label` | （可选）多账号时区分推送标题前缀 |
 | `proxy_port` | mitmproxy 监听端口，默认 8080 |
-| `mitmdump_path` | （可选）mitmdump 绝对路径，留空自动探测 |
+| `mitmdump_path` | （可选）mitmdump 绝对路径，留空自动探测（见下节 FAQ） |
+
+---
+
+## 常见问题
+
+### 报「未找到 mitmdump」，但我明明装好 mitmproxy 了
+
+这是最常见的一个坑：`pip install --user mitmproxy` 会把 `mitmdump.exe` 装到
+`%APPDATA%\Python\Python3XX\Scripts\`，而这个目录**默认不在 PATH 里**；
+PATH 上的 `python` 往往又是另一个 Python（Anaconda / python.org 安装器），它的 `Scripts\` 里当然没有 `mitmdump.exe`。
+
+脚本的探测顺序是：`config.json` 的 `mitmdump_path` → `PATH` → 当前解释器的 `Scripts\` →
+各 conda / venv 环境的 `envs\*\Scripts\` → `%APPDATA%\Python\Python3XX\Scripts\` /
+`%LOCALAPPDATA%\Programs\Python\Python3XX\Scripts\`
+→ 用当前解释器以「模块方式」启动（`python -c "from mitmproxy.tools.main import mitmdump; ..."`）。
+
+`checkin.py` **自己不 import mitmproxy**，所以哪怕用 base 环境的 `python` 跑、mitmproxy 只装在
+`envs\WANAN` 里，脚本也能找到那个环境的 `mitmdump.exe` 正常打卡。
+
+仍有问题就跑 `python checkin.py --doctor` 看诊断（会列出探测过的每个目录），或手动指定路径：
+
+```jsonc
+// config.json
+"mitmdump_path": "C:\\Users\\<你>\\AppData\\Roaming\\Python\\Python312\\Scripts\\mitmdump.exe"
+```
+
+彻底解决（以后不用再写这个字段）：把该 `Scripts` 目录加进用户 PATH：
+
+```powershell
+$p = [Environment]::GetEnvironmentVariable('Path','User')
+[Environment]::SetEnvironmentVariable('Path', "$p;C:\Users\<你>\AppData\Roaming\Python\Python312\Scripts", 'User')
+```
 
 ---
 
 ## 迁移到其它电脑
 
 拷贝整个目录，装 Python + `pip install mitmproxy`，填好 `config.json` 即可。首次运行脚本会自动安装 CA 证书（弹 UAC，点「是」），装完重启微信。
-`mitmdump` 路径自动探测（`PATH` → 当前解释器的 `Scripts/`），找不到时在 `config.json` 里写 `mitmdump_path`。
+`mitmdump` 路径自动探测（`PATH` → 当前解释器的 `Scripts/` → 各 conda/venv 环境的 `envs\*\Scripts\` → 用户目录 `%APPDATA%\Python\Python3XX\Scripts\` → 模块方式启动），找不到时在 `config.json` 里写 `mitmdump_path`，或跑 `--doctor` 看诊断。
 如果带 mitmproxy 的 Python 不在 PATH 里，可新建 `python_path.txt`（一行，写它的 `python.exe` 绝对路径；该文件已加入 `.gitignore`，不会入库）。
 
 ---

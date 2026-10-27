@@ -27,6 +27,6 @@
   "_proxy_port": "（可选）mitmdump 监听端口，默认 8080。",
   "proxy_port": 8080,
 
-  "_mitmdump_path": "（可选）mitmdump 的绝对路径。留空则自动探测：PATH → 当前解释器的 Scripts 目录。",
+  "_mitmdump_path": "（可选）mitmdump 的绝对路径。留空则自动探测：PATH → 当前解释器的 Scripts 目录 → 用户目录 %APPDATA%\\Python\\Python3XX\\Scripts → 模块方式启动。报「未找到 mitmdump」时可运行 python checkin.py --doctor 查看诊断。",
   "mitmdump_path": ""
 }
